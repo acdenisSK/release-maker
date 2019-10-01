@@ -1,0 +1,12 @@
+{
+    "header": "AAAA",
+    "authors": [
+        ["Erk-", "https://github.com/Erk-"]
+    ],
+    "commits": [
+        ["Add support for the preferred_local field", "https://github.com/serenity-rs/serenity/xxxffsafasSfsfasfasfsa"]
+    ],
+    "added": [
+        ["model", 1, 1]
+    ]
+}
