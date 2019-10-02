@@ -1,10 +1,10 @@
 {
-    "header": "AAAA",
+    "header": "I'd like to mention a few things...",
     "authors": [
         ["Erk-", "https://github.com/Erk-"]
     ],
     "commits": [
-        ["Add support for the preferred_local field", "https://github.com/serenity-rs/serenity/xxxffsafasSfsfasfasfsa"]
+        ["Add support for the preferred_local field", "https://github.com/serenity-rs/serenity/commit/2d3e585506d20c4ffab34ff015679a1dcca30575"]
     ],
     "added": [
         ["model", 1, 1]
