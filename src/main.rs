@@ -1,6 +1,41 @@
-use serde::Deserialize;
-use std::fs::File;
+use serde::de::{Error as DeError, SeqAccess, Visitor};
+use serde::{Deserialize, Deserializer};
 use std::error::Error as StdError;
+use std::fmt;
+use std::fs::File;
+
+#[derive(Debug, Clone)]
+struct OneOrMore(Vec<usize>);
+
+impl<'de> Deserialize<'de> for OneOrMore {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct V;
+
+        impl<'de> Visitor<'de> for V {
+            type Value = Vec<usize>;
+
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.write_str("one item or more")
+            }
+
+            fn visit_u64<E: DeError>(self, v: u64) -> Result<Self::Value, E> {
+                Ok(vec![v as usize])
+            }
+
+            fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+                let mut v = Vec::with_capacity(seq.size_hint().unwrap_or(0));
+
+                while let Some(elem) = seq.next_element()? {
+                    v.push(elem);
+                }
+
+                Ok(v)
+            }
+        }
+
+        deserializer.deserialize_any(V).map(OneOrMore)
+    }
+}
 
 #[derive(Deserialize, Debug, Clone)]
 struct Author(String, String);
@@ -30,7 +65,11 @@ impl Commit {
 }
 
 #[derive(Deserialize, Debug, Clone)]
-struct Change(String, usize, usize);
+#[serde(untagged)]
+enum Change {
+    Normal(String, usize, usize),
+    Custom(String, String, OneOrMore, OneOrMore),
+}
 
 #[derive(Deserialize, Debug, Clone)]
 struct Release {
@@ -61,26 +100,67 @@ fn fmt(rel: &Release) {
     println!();
 
     let print_list = |s, l: &[Change]| {
+        let cat = |category: &str| {
+            if category.is_empty() {
+                "".to_string()
+            } else {
+                format!("[{}]", category)
+            }
+        };
+
         if !l.is_empty() {
             println!("{}\n", s);
 
-            for Change(category, commit, author) in l {
-                let author = &rel.authors[author - 1];
-                let commit = &rel.commits[commit - 1];
+            for change in l {
+                match change {
+                    Change::Normal(category, author, commit) => {
+                        let category = cat(category);
+                        let author = &rel.authors[author - 1];
+                        let commit = &rel.commits[commit - 1];
 
-                let category = if category.is_empty() {
-                    "".to_string()
-                } else {
-                    format!("[{}]", category)
-                };
+                        println!(
+                            "- {} {} ({}) {}",
+                            category,
+                            commit.0,
+                            author.reference(),
+                            commit.reference()
+                        );
+                    },
+                    Change::Custom(category, name, OneOrMore(authors), OneOrMore(commits)) => {
+                        let category = cat(category);
 
-                println!(
-                    "- {} {} ({}) {}",
-                    category,
-                    commit.0,
-                    author.reference(),
-                    commit.reference()
-                );
+                        print!("- {} {} (", category, name);
+
+                        let mut first = true;
+
+                        for author in authors {
+                            if !first {
+                                print!(" ");
+                            }
+
+                            let author = &rel.authors[author - 1];
+                            print!("{}", author.reference());
+
+                            first = false;
+
+                        }
+
+                        print!(") ");
+
+                        first = true;
+                        for commit in commits {
+                            if !first {
+                                print!(" ");
+                            }
+
+                            let commit = &rel.commits[commit - 1];
+                            print!("{}", commit.reference());
+                            first = false;
+                        }
+
+                        println!();
+                    }
+                }
             }
 
             println!();
