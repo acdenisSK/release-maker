@@ -1,12 +1,27 @@
 {
     "header": "I'd like to mention a few things...",
+    "repo_url": "https://github.com/serenity-rs/serenity",
     "authors": [
-        ["Erk-", "https://github.com/Erk-"]
+        "acdenisSK",
+        "Erk-",
+        "LeSeulArtichaut"
     ],
     "commits": [
-        ["Add support for the preferred_local field", "https://github.com/serenity-rs/serenity/commit/2d3e585506d20c4ffab34ff015679a1dcca30575"]
+        ["Add support for the preferred_local field", "2d3e585506d20c4ffab34ff015679a1dcca30575"],
+        ["Apply case-insensitivity to prefix", "b2c951d90acc2061824926573cc1dfe331d0c1e5"],
+        ["Fix `Guild::edit_role_position` example", "346a7feb0da9167760bd69d1d1cc3478c6c379b6"],
+        ["Get rid of the `Arc` implementation for `Framework`", "05044b6f1bdf9047ebfc447e19d199f4a35816e6"]
     ],
     "added": [
-        ["model", 1, 1]
+        ["model", 2, 1]
+    ],
+    "changed": [
+        ["framework", 1, 2]
+    ],
+    "fixed": [
+        ["model", 3, 3]
+    ],
+    "removed": [
+        ["framework", 1, 4]
     ]
 }

@@ -1,0 +1,12 @@
+The input of the tool is json containing all the authors and their respective commits, alongside the url to the repo where the commits are stored.
+The resulting output is markdown-formatted text.
+
+The output may start with a header, if provided in the input.
+It continues by giving credit to all the authors that have contributed the project.
+
+The commits are split into four classes: Added, Changed, Fixed, Removed. Each class is placed under its own heading, and is sorted in that order.
+All classes are optional; it's valid to leave one or all classes out of the input.
+In each class, their commits are printed out in a list in the order they were written in the input.
+Each commit is expressed by their category of function or place, name, author, and its unique hash.
+
+Lastly, hidden text is printed. It provides links to the authors and repo urls to the commit hashes.
