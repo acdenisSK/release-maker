@@ -8,33 +8,34 @@ use structopt::StructOpt;
 use std::fmt;
 use std::fs::File;
 use std::path::PathBuf;
+use std::collections::HashSet;
 
 static EXPLANATION: &str = include_str!("explanation.txt");
 static EXAMPLE: &str = include_str!("../example.json");
 
 #[derive(Debug, Clone)]
-struct OneOrMore(Vec<usize>);
+struct OneOrMore(Vec<String>);
 
 impl<'de> Deserialize<'de> for OneOrMore {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         struct V;
 
         impl<'de> Visitor<'de> for V {
-            type Value = Vec<usize>;
+            type Value = Vec<String>;
 
             fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.write_str("one index or more")
+                f.write_str("one string or more")
             }
 
-            fn visit_u64<E: DeError>(self, v: u64) -> Result<Self::Value, E> {
-                Ok(vec![v as usize])
+            fn visit_str<E: DeError>(self, v: &str) -> Result<Self::Value, E> {
+                Ok(vec![v.to_string()])
             }
 
             fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
                 let cap = seq.size_hint().unwrap_or(0);
 
                 if cap == 0 {
-                    return Err(A::Error::custom("expected at least one index"));
+                    return Err(A::Error::custom("expected at least one string"));
                 }
 
                 let mut v = Vec::with_capacity(cap);
@@ -52,105 +53,57 @@ impl<'de> Deserialize<'de> for OneOrMore {
 }
 
 #[derive(Debug, Default, Clone)]
-struct Author {
-    name: String,
-    url: String,
+struct Author(String);
+
+impl Author {
+    fn new<I>(name: I) -> Self
+        where I: Into<String>
+    {
+        Self(name.into())
+    }
+
+    fn name(&self) -> &str {
+        &self.0
+    }
 }
 
 impl fmt::Display for Author {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[@{}]", self.name)
-    }
-}
-
-impl<'de> Deserialize<'de> for Author {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct Vis;
-
-        impl<'de> Visitor<'de> for Vis {
-            type Value = Author;
-
-            fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.write_str("an author's name or their name and their github page")
-            }
-
-            fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
-                let mut author = Author::default();
-
-                author.name = match seq.next_element()? {
-                    Some(name) => name,
-                    None => return Err(A::Error::custom("missing author name")),
-                };
-
-                author.url = match seq.next_element()? {
-                    Some(url) => url,
-                    None => format!("https://github.com/{}", author.name),
-                };
-
-                Ok(author)
-            }
-
-            fn visit_str<E: DeError>(self, v: &str) -> Result<Self::Value, E> {
-                Ok(Author {
-                    name: v.to_string(),
-                    url: format!("https://github.com/{}", v),
-                })
-            }
-        }
-
-        deserializer.deserialize_any(Vis)
+        write!(f, "[@{}]", self.name())
     }
 }
 
 #[derive(Debug, Default, Clone)]
-struct Commit {
-    name: String,
-    hash: String,
+struct Commit(String);
+
+impl Commit {
+    fn new<I>(hash: I) -> Self
+        where I: Into<String>
+    {
+        let hash = hash.into();
+        assert!(hash.len() >= 7, "commit hashes ought to at least or longer than 7 characters");
+        Self(hash)
+    }
+
+    fn hash(&self) -> &str {
+        &self.0
+    }
 }
 
 impl fmt::Display for Commit {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[c:{}]", &self.hash[..7])
-    }
-}
-
-impl<'de> Deserialize<'de> for Commit {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let mut strings = <Vec<String> as Deserialize<'de>>::deserialize(deserializer)?;
-
-        if strings.len() != 2 {
-            return Err(D::Error::custom(
-                "expected two strings in an array for the name and hash of commit",
-            ));
-        }
-
-        let name = strings.remove(0);
-        let hash = strings.remove(0);
-
-        if hash.len() < 7 {
-            return Err(D::Error::custom(
-                "hash identifier must be at least or longer than 7 characters",
-            ));
-        }
-
-        Ok(Commit { name, hash })
+        write!(f, "[c:{}]", &self.hash()[..7])
     }
 }
 
 #[derive(Deserialize, Debug, Clone)]
-#[serde(untagged)]
-enum Change {
-    Normal(String, usize, usize),
-    Custom(String, String, OneOrMore, OneOrMore),
-}
+struct Change(String, String, OneOrMore, OneOrMore);
 
 #[derive(Deserialize, Debug, Clone)]
 struct Release {
     #[serde(default)]
     header: String,
     repo_url: String,
-    authors: Vec<Author>,
-    commits: Vec<Commit>,
     #[serde(default)]
     added: Vec<Change>,
     #[serde(default)]
@@ -159,6 +112,34 @@ struct Release {
     fixed: Vec<Change>,
     #[serde(default)]
     removed: Vec<Change>,
+}
+
+impl Release {
+    fn iter(&self) -> impl Iterator<Item = &Change> + '_ {
+        self.added.iter()
+            .chain(self.changed.iter())
+            .chain(self.fixed.iter())
+            .chain(self.removed.iter())
+    }
+
+    fn get_authors(&self) -> Vec<String> {
+        self.iter()
+            .flat_map(|Change(_, _, OneOrMore(authors), _)| {
+                authors.iter().cloned()
+            })
+            // Avoid duplicate instances of authors.
+            .collect::<HashSet<String>>()
+            .into_iter()
+            .collect()
+    }
+
+    fn get_commits(&self) -> Vec<String> {
+        self.iter()
+            .flat_map(|Change(_, _, _, OneOrMore(commits))| {
+                commits.iter().cloned()
+            })
+            .collect()
+    }
 }
 
 fn write_separated<T, It>(f: &mut impl fmt::Write, it: It, sep: &str) -> fmt::Result
@@ -186,7 +167,6 @@ fn write_list(
     f: &mut impl fmt::Write,
     header: &str,
     changes: &[Change],
-    rel: &Release,
 ) -> fmt::Result {
     if changes.is_empty() {
         return Ok(());
@@ -194,39 +174,23 @@ fn write_list(
 
     writeln!(f, "{}\n", header)?;
 
-    let cat = |category: &str| format!("[{}]", category);
-
     for change in changes {
-        match change {
-            Change::Normal(category, author, commit) => {
-                assert!(!category.is_empty());
+        let Change(category, name, OneOrMore(authors), OneOrMore(commits)) = change;
 
-                let category = cat(category);
-                let author = &rel.authors[author - 1];
-                let commit = &rel.commits[commit - 1];
+        assert!(!category.is_empty(), "categores cannot be empty");
 
-                writeln!(f, "- {} {} ({}) {}", category, commit.name, author, commit)?;
-            }
-            Change::Custom(category, name, OneOrMore(authors), OneOrMore(commits)) => {
-                assert!(!category.is_empty());
+        write!(f, "- [{}] {} (", category, name)?;
+        let authors = authors.iter().map(Author::new);
+        write_separated(f, authors, " ")?;
+        write!(f, ") ")?;
 
-                let category = cat(category);
-
-                print!("- {} {} (", category, name);
-
-                let authors = authors.iter().map(|i| &rel.authors[i - 1]);
-                write_separated(f, authors, " ")?;
-                write!(f, ") ")?;
-
-                let commits = commits.iter().map(|i| &rel.commits[i - 1]);
-                write_separated(f, commits, " ")?;
-
-                writeln!(f)?;
-            }
-        }
+        let commits = commits.iter().map(Commit::new);
+        write_separated(f, commits, " ")?;
 
         writeln!(f)?;
     }
+
+    writeln!(f)?;
 
     Ok(())
 }
@@ -238,25 +202,33 @@ fn generate_msg(f: &mut impl fmt::Write, rel: &Release) -> fmt::Result {
 
     writeln!(f, "Thanks to the following for their contributions:\n")?;
 
-    for author in &rel.authors {
-        writeln!(f, "- {}", author)?;
+    let mut authors = rel.get_authors();
+    // Sort alphabetically.
+    authors.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+
+    let commits = rel.get_commits();
+
+    for name in &authors {
+        writeln!(f, "- {}", Author::new(name))?;
     }
 
     writeln!(f)?;
 
-    write_list(f, "### Added", &rel.added, rel)?;
-    write_list(f, "### Changed", &rel.changed, rel)?;
-    write_list(f, "### Fixed", &rel.fixed, rel)?;
-    write_list(f, "### Removed", &rel.removed, rel)?;
+    write_list(f, "### Added", &rel.added)?;
+    write_list(f, "### Changed", &rel.changed)?;
+    write_list(f, "### Fixed", &rel.fixed)?;
+    write_list(f, "### Removed", &rel.removed)?;
 
-    for author in &rel.authors {
-        writeln!(f, "{}: {}", author, author.url)?;
+    for name in authors {
+        let author = Author::new(name);
+        writeln!(f, "{}: https://github.com/{}", author, author.name())?;
     }
 
     writeln!(f)?;
 
-    for commit in &rel.commits {
-        writeln!(f, "{}: {}/commit/{}", commit, rel.repo_url, commit.hash)?;
+    for hash in commits {
+        let commit = Commit::new(hash);
+        writeln!(f, "{}: {}/commit/{}", commit, rel.repo_url, commit.hash())?;
     }
 
     Ok(())
