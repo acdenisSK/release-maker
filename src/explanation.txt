@@ -1,12 +1,18 @@
-The input of the tool is json containing all the authors and their respective commits, alongside the url to the repo where the commits are stored.
+The input of the tool is json containing an optional header, a URL to the git repository, and four classes that classify commits based on their function.
 The resulting output is markdown-formatted text.
 
-The output may start with a header, if provided in the input.
-It continues by giving credit to all the authors that have contributed the project.
+The output is generated as the following:
+- A header, if it was provided in the input.
+- Credit to all the authors in a list that is sorted alphabetically.
+- The "Added" class. Indicates that commits add new behaviour or functionality.
+- The "Changed" class. Indicates that commits alter pre-existing behaviour or functionality.
+- The "Fixed" class. Indicates that commits amend broken behaviour or functionality.
+- The "Removed" class. Indicates that commits remove behaviour or functionality.
+- Lastly, text that is hidden when rendered. Provides links to the authors' homepages and repository URLs to the commit hashes.
 
-The commits are split into four classes: Added, Changed, Fixed, Removed. Each class is placed under its own heading, and is sorted in that order.
-All classes are optional; it's valid to leave one or all classes out of the input.
-In each class, their commits are printed out in a list in the order they were written in the input.
-Each commit is expressed by their category of function or place, name, author, and its unique hash.
-
-Lastly, hidden text is printed. It provides links to the authors and repo urls to the commit hashes.
+The classes are optional; any class may be omitted. They're composed of items.
+An item in a class is comprised of four things: category, name, author(s), commit hash(es).
+A category describes the location where the commits have been applied.
+A name can be anything, but it is preferred to use a commit name when there is just one (see below).
+There may be just one, or many authors. In the case of one, specify a string. In the case of many, use an array of strings.
+Similarly, there may be just one commit, or set of commits that collectively have brought changes for a specific purpose. In case of one, one string. In case of many, array of strings.
