@@ -45,13 +45,7 @@ where
             }
 
             fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
-                let cap = seq.size_hint().unwrap_or(0);
-
-                if cap == 0 {
-                    return Err(A::Error::custom("expected at least one string"));
-                }
-
-                let mut v = Vec::with_capacity(cap);
+                let mut v = Vec::with_capacity(seq.size_hint().unwrap_or(0));
 
                 while let Some(elem) = seq.next_element::<String>()? {
                     let item = match T::try_from(elem) {
@@ -61,6 +55,8 @@ where
 
                     v.push(item);
                 }
+
+                assert!(v.len() > 1, "expected at least one string");
 
                 Ok(v)
             }
