@@ -1,4 +1,6 @@
-//! The underlaying functionality of the release-maker binary exposed as a library.
+//! The underlaying functionality of the [`release-maker`] binary exposed as a library.
+//!
+//! [`release-maker`]: https://github.com/acdenisSK/release-maker
 
 #![deny(rust_2018_idioms)]
 
@@ -120,11 +122,11 @@ impl TryFrom<String> for Author {
 pub struct Commit(String);
 
 impl Commit {
-    /// Create a new Commit with its hash.
+    /// Create a new commit with its hash.
     ///
     /// # Panics
-    ///
-    /// - If the hash is shorter than 7 characters.
+    /// A panic is incurred if:
+    /// - the passed hash is shorter than 7 characters.
     #[inline]
     pub fn new<I>(hash: I) -> Self
     where
@@ -150,7 +152,10 @@ impl Commit {
 /// [`Commit`]: struct.Commit.html
 /// [`String`]: std::string::String
 #[derive(Debug, Clone, PartialEq)]
-pub struct CommitConversionError;
+pub struct CommitConversionError(
+    /// The offending string that was passed.
+    pub String
+);
 
 impl fmt::Display for CommitConversionError {
     #[inline]
@@ -164,10 +169,18 @@ impl std::error::Error for CommitConversionError {}
 impl TryFrom<String> for Commit {
     type Error = CommitConversionError;
 
+    /// Try convert a [`String`] to a [`Commit`].
+    ///
+    /// # Errors
+    /// An error is returned if:
+    /// - the passed [`String`] is shorter than 7 characters
+    ///
+    /// [`Commit`]: struct.Commit.html
+    /// [`String`]: std::string::String
     #[inline]
     fn try_from(s: String) -> Result<Self, Self::Error> {
         if s.len() < 7 {
-            return Err(CommitConversionError);
+            return Err(CommitConversionError(s));
         }
 
         Ok(Self::new(s))

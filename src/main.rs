@@ -1,6 +1,6 @@
 #![deny(rust_2018_idioms)]
 
-use release_maker::generate_msg;
+use rmaker::generate_msg;
 
 use structopt::StructOpt;
 
@@ -13,10 +13,10 @@ static EXAMPLE: &str = include_str!("../example.json");
 #[derive(StructOpt)]
 #[structopt(
     name = "release-maker",
-    about = "A utility tool for easy changelog creation"
+    about = "A utility tool to quickly create changelogs for Github releases"
 )]
 struct App {
-    /// Path to input file. Will use stdin if absent.
+    /// Path to input file. Standard input will be used if the path is absent.
     #[structopt(parse(from_os_str))]
     file: Option<PathBuf>,
     /// Print example input.

@@ -1,5 +1,5 @@
 [package]
-name = "release_maker"
+name = "rmaker"
 version = "0.1.0"
 authors = ["Alex M. M. <acdenissk69@gmail.com>"]
 edition = "2018"

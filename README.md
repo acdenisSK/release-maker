@@ -7,7 +7,11 @@ I had been writing in this style by hand, but I quickly got sick of it. Hence le
 
 ## Okay, seems interesting. May I use it?
 
-Sure, do whatever you want with it. To install, invoke `cargo install --git https://github.com/acdenisSK/release-maker` in your terminal.
+Sure, do whatever you want with it. To install, invoke
+```
+cargo install --git https://github.com/acdenisSK/release-maker
+```
+in your terminal.
 
 To generate the output, provide a path to a input file containing the changes that have occured for a release. You can also use standard input if you don't specifiy a path.
 
