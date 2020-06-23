@@ -7,7 +7,7 @@ use structopt::StructOpt;
 use std::fs::File;
 use std::path::PathBuf;
 
-static EXPLANATION: &str = include_str!("explanation.txt");
+static EXPLANATION: &str = include_str!("../explanation.txt");
 static EXAMPLE: &str = include_str!("../example.json");
 
 #[derive(StructOpt)]
