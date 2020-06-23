@@ -1,0 +1,10 @@
+root = true
+
+[*]
+end-of-line = lf
+insert_final_newline = true
+
+[*.{rs,toml}]
+charset = utf-8
+indent_style = space
+indent_size = 4
