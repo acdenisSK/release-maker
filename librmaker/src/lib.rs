@@ -5,7 +5,8 @@
 #![deny(rust_2018_idioms)]
 
 use serde::de::{Error as DeError, SeqAccess, Visitor};
-use serde::{Deserialize, Deserializer};
+use serde::ser::SerializeSeq;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use std::collections::HashSet;
 use std::convert::TryFrom;
@@ -20,6 +21,25 @@ use std::marker::PhantomData;
 /// [`String`]: std::string::String
 #[derive(Debug, Clone)]
 pub struct OneOrMore<T>(pub Vec<T>);
+
+impl<T> Serialize for OneOrMore<T>
+where
+    T: Serialize,
+{
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        if self.0.len() == 1 {
+            Serialize::serialize(&(self.0)[0], serializer)
+        } else {
+            let mut seq = serializer.serialize_seq(Some(self.0.len()))?;
+
+            for item in &self.0 {
+                seq.serialize_element(item)?;
+            }
+
+            seq.end()
+        }
+    }
+}
 
 impl<'de, T> Deserialize<'de> for OneOrMore<T>
 where
@@ -70,7 +90,7 @@ where
 }
 
 /// Describes a Github author by their name.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct Author(String);
 
 impl Author {
@@ -96,7 +116,7 @@ impl fmt::Display for Author {
     /// # Example
     ///
     /// ```rust
-    /// use release_maker::Author;
+    /// use rmaker::Author;
     ///
     /// let author = Author::new("ghost");
     ///
@@ -118,7 +138,7 @@ impl TryFrom<String> for Author {
 }
 
 /// Describes a Git commit by its hash.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct Commit(String);
 
 impl Commit {
@@ -154,7 +174,7 @@ impl Commit {
 #[derive(Debug, Clone, PartialEq)]
 pub struct CommitConversionError(
     /// The offending string that was passed.
-    pub String
+    pub String,
 );
 
 impl fmt::Display for CommitConversionError {
@@ -194,7 +214,7 @@ impl fmt::Display for Commit {
     /// # Example
     ///
     /// ```rust
-    /// use release_maker::Commit;
+    /// use rmaker::Commit;
     ///
     /// let commit = Commit::new("820d50ee4fbc72a41a2040f6ced240df7aaa6fa8");
     ///
@@ -212,7 +232,7 @@ impl fmt::Display for Commit {
 /// The second field expresses the name of the change - name.<br>
 /// The third field specifies the author(s) of the change that participated - authors.<br>
 /// The fourth field tells the commit(s) of the change - commits.
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Change(
     pub String,
     pub String,
@@ -220,8 +240,42 @@ pub struct Change(
     pub OneOrMore<Commit>,
 );
 
+impl Change {
+    /// Create a new Change with a category, a name, a single author, and a single commit.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use rmaker::{Change, OneOrMore};
+    ///
+    /// let Change(category, name, OneOrMore(authors), OneOrMore(commits)) =
+    ///     Change::new("misc", "Changed something", "John Doe", "820d50ee4fbc72a41a2040f6ced240df7aaa6fa8");
+    ///
+    /// assert_eq!(category, "misc");
+    /// assert_eq!(name, "Changed something");
+    /// assert_eq!(authors.len(), 1);
+    /// assert_eq!(authors[0].name(), "John Doe");
+    /// assert_eq!(commits.len(), 1);
+    /// assert_eq!(commits[0].hash(), "820d50ee4fbc72a41a2040f6ced240df7aaa6fa8");
+    /// ```
+    pub fn new<A, B, C, D>(category: A, name: B, author: C, commit: D) -> Self
+    where
+        A: Into<String>,
+        B: Into<String>,
+        C: Into<String>,
+        D: Into<String>,
+    {
+        Self(
+            category.into(),
+            name.into(),
+            OneOrMore(vec![Author::new(author)]),
+            OneOrMore(vec![Commit::new(commit)]),
+        )
+    }
+}
+
 /// Represents a release of the software from the current snapshot of the repository.
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Default, Deserialize, Debug, Clone)]
 pub struct Release {
     /// A message describing the release. Placed at the top of the generated output.
     ///
