@@ -2,4 +2,5 @@
 members = [
     "librmaker",
     "release-maker",
+    "ghet",
 ]
