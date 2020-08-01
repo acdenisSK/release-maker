@@ -1,137 +1,74 @@
+use anyhow::Result;
+use ghet::cache::Cache;
+use ghet::git::{Commit, Git2, Repository};
 use rmaker::{Change, Release};
-
+use serde_json::to_string_pretty;
 use structopt::StructOpt;
 
-use serde::{Deserialize, Serialize};
-use serde_json::to_string_pretty;
-
-use octocrab::Octocrab;
-
-use anyhow::{anyhow, bail, Context, Result};
-
-#[derive(Debug, Deserialize)]
-struct User {
-    name: String,
-    email: String,
-    date: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct CommitData {
-    author: User,
-    committer: User,
-    message: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct GithubCommit {
-    sha: String,
-    html_url: String,
-    commit: CommitData,
-}
-
-#[derive(Debug, Serialize)]
-struct Parameters {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    sha: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    since: Option<String>,
-}
-
 #[derive(StructOpt)]
-#[structopt(name = "ghet", about = "Get a list of commits from Github")]
+/// Get a list of commits from a Git repository.
 struct App {
-    /// The URL to a Github repository
-    #[structopt(short, long)]
-    url: String,
-    /// Either a commit hash or branch name to define the start boundary of the list.
-    /// If left undefined, this will assume the default branch of the repository.
+    /// The path, which may be a directory path or URL, to a Git repository
+    #[structopt(default_value = ".")]
+    path: String,
+    /// The branch to construct the list of commits from.
+    /// Defaults to `master` if left undefined.
+    #[structopt(short, long, default_value = "master")]
+    branch: String,
+    /// A commit hash to define the start boundary of the list.
     #[structopt(short, long)]
     start: Option<String>,
-    /// A commit hash to define the end boundary of the list.
+    /// A commit hash to define the (inclusive) end boundary of the list.
     /// If left undefined, this will retrieve ALL commits from the start of the list.
     #[structopt(short, long)]
     end: Option<String>,
+    #[structopt(subcommand)]
+    subcommand: Option<SubCommand>,
 }
 
-fn extract_repository(url: &str) -> Result<&str> {
-    match url.strip_prefix("https://github.com/") {
-        Some(repo) => Ok(repo),
-        None => Err(anyhow!("missing 'https://github.com' prefix")),
-    }
+#[derive(StructOpt)]
+enum SubCommand {
+    /// Clear the program cache.
+    Clear,
 }
 
-fn retrieve_token() -> Result<String> {
-    std::env::var("GITHUB_TOKEN").context("Failed to retrieve Github token from `$GITHUB_TOKEN`")
+fn find_position(commits: &[Commit], hash: Option<String>) -> Option<usize> {
+    let hash = hash?;
+    commits.iter().position(|c| c.hash == hash)
 }
 
-async fn generate_parameters(client: &Octocrab, app: &App, base_url: &str) -> Result<Parameters> {
-    match &app.start {
-        Some(start) => match &app.end {
-            Some(end) => {
-                let commit: GithubCommit = client
-                    .get(format!("{}/{}", base_url, end), None::<&()>)
-                    .await
-                    .context("Failed to retrieve commit to specify the end boundary")?;
-
-                Ok(Parameters {
-                    sha: Some(start.clone()),
-                    since: Some(commit.commit.committer.date),
-                })
-            }
-            None => Ok(Parameters {
-                sha: Some(start.clone()),
-                since: None,
-            }),
-        },
-        None if app.end.is_some() => bail!("Defined an `end` boundary, but not a `start` boundary"),
-        None => Ok(Parameters {
-            sha: None,
-            since: None,
-        }),
-    }
-}
-
-fn generate_release(repo_url: String, commits: Vec<GithubCommit>) -> Release {
+fn generate_release(repo_url: String, commits: impl Iterator<Item = Commit>) -> Release {
     Release {
         repo_url,
         added: commits
-            .into_iter()
-            .map(|commit| {
-                let GithubCommit {
-                    sha,
-                    commit:
-                        CommitData {
-                            author, message, ..
-                        },
-                    ..
-                } = commit;
-
-                Change::new("any", message, author.name, sha)
-            })
+            .map(|commit| Change::new("any", commit.message, commit.author.name, commit.hash))
             .collect(),
         ..Default::default()
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     let app = App::from_args();
-    let repo =
-        extract_repository(&app.url).context("Failed to extract repository out of the URL")?;
+    let cache = Cache::new(env!("CARGO_PKG_NAME"))?;
 
-    let client = Octocrab::builder()
-        .personal_token(retrieve_token()?)
-        .build()?;
+    if let Some(command) = app.subcommand {
+        match command {
+            SubCommand::Clear => cache.clear()?,
+        }
 
-    let base_url = format!("/repos/{}/commits", repo);
-    let parameters = generate_parameters(&client, &app, &base_url).await?;
-    let result: Vec<GithubCommit> = client
-        .get(base_url, Some(&parameters))
-        .await
-        .context("Failed to retrieve list of commits")?;
+        return Ok(());
+    }
 
-    let release = generate_release(app.url, result);
+    let repo = ghet::open_repository(Git2, &cache, &app.path)?;
+    let mut commits = repo.commits(&app.branch)?;
+
+    let start = find_position(&commits, app.start).unwrap_or(0);
+    // As we are using an inclusive range, draining the list of commits by its length will result
+    // in a panic. To avoid this, we subtract the length only if it is not zero.
+    let end = find_position(&commits, app.end).unwrap_or(commits.len().checked_sub(1).unwrap_or(0));
+
+    let release = generate_release(repo.url()?, commits.drain(start..=end));
+
     println!("{}", to_string_pretty(&release)?);
 
     Ok(())
