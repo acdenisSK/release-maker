@@ -1,8 +1,6 @@
-//! The *git* module defines an abstraction to the necessary wheels and cogs for understanding and
-//! manipulating Git repositories. The wheels and cogs may be the `git` binary, or the `libgit2` C library.
+//! The *git* module defines a small abstraction of the libgit2 C library to simplify its usage.
 
 use anyhow::Result;
-use git2::Repository as Git2Repository;
 
 use std::path::Path;
 
@@ -22,46 +20,54 @@ pub struct Commit {
     pub message: String,
 }
 
-mod private {
-    use super::*;
-
-    pub trait Restricted {}
-
-    impl Restricted for Git2Repository {}
-
-    pub enum Void {}
-
-    impl Restricted for Void {}
+/// A wrapper around the [`git2`] crate's [`Repository`] type.
+///
+/// [`git2`]: https://github.com/rust-lang/git2-rs
+/// [`Repository`]: https://docs.rs/git2/*/git2/struct.Repository.html
+pub struct Repository {
+    inner: git2::Repository,
 }
 
-/// Specifies an abstraction to a repository by the `git` binary, or the `libgit2` C library.
-///
-/// Cannot be implemented outside of the crate.
-pub trait Repository: private::Restricted {
+impl Repository {
+    /// Open a local repository at `path`.
+    pub fn open<P>(path: P) -> Result<Self>
+    where
+        P: AsRef<Path>,
+    {
+        Ok(Self {
+            inner: git2::Repository::open(path)?,
+        })
+    }
+
+    /// Clones a remote repository at `repo_url` into `destination`.
+    pub fn clone<P>(url: &str, destination: P) -> Result<Self>
+    where
+        P: AsRef<Path>,
+    {
+        Ok(Self {
+            inner: git2::Repository::clone(url, destination)?,
+        })
+    }
+
     /// Returns the URL to the repository.
-    fn url(&self) -> Result<String>;
+    pub fn url(&self) -> Result<String> {
+        Ok(self.inner.find_remote("origin")?.url().unwrap().to_string())
+    }
+
     /// Returns a vector of [`Commit`]s from a branch.
     ///
     /// [`Commit`]: struct.Commit.html
-    fn commits(&self, branch: &str) -> Result<Vec<Commit>>;
-}
+    pub fn commits(&self, branch: &str) -> Result<Vec<Commit>> {
+        let reference = self.inner.find_reference(&format!("refs/remotes/origin/{}", branch))?;
 
-impl Repository for Git2Repository {
-    fn url(&self) -> Result<String> {
-        Ok(self.find_remote("origin")?.url().unwrap().to_string())
-    }
-
-    fn commits(&self, branch: &str) -> Result<Vec<Commit>> {
-        let reference = self.find_reference(&format!("refs/remotes/origin/{}", branch))?;
-
-        let mut revwalk = self.revwalk()?;
+        let mut revwalk = self.inner.revwalk()?;
         revwalk.push(reference.target().unwrap())?;
         revwalk.set_sorting(git2::Sort::TOPOLOGICAL)?;
 
         let mut commits = Vec::new();
 
         for oid in revwalk {
-            let commit = self.find_commit(oid?)?;
+            let commit = self.inner.find_commit(oid?)?;
             let author = commit.author();
             let committer = commit.committer();
 
@@ -80,78 +86,5 @@ impl Repository for Git2Repository {
         }
 
         Ok(commits)
-    }
-}
-
-impl Repository for private::Void {
-    fn url(&self) -> Result<String> {
-        unimplemented!()
-    }
-
-    fn commits(&self, _branch: &str) -> Result<Vec<Commit>> {
-        unimplemented!()
-    }
-}
-
-/// This trait is an an abstraction to the necessary wheels and cogs for understanding and
-/// manipulating Git repositories. The wheels and cogs may be the `git` binary, or the `libgit2` C library.
-pub trait Git {
-    /// Repository type of the respective wheels and cog.
-    type Repository: Repository;
-
-    /// Clones a remote repository at `repo_url` into `destination`.
-    fn clone<P>(&self, repo_url: &str, destination: P) -> Result<Self::Repository>
-    where
-        P: AsRef<Path>;
-
-    /// Open a local repository at `repo_path`.
-    fn open<P>(&self, repo_path: P) -> Result<Self::Repository>
-    where
-        P: AsRef<Path>;
-}
-
-/// Provides Git capabilities using the `libgit2` C library.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Git2;
-
-impl Git for Git2 {
-    type Repository = Git2Repository;
-
-    fn clone<P>(&self, repo_url: &str, destination: P) -> Result<Self::Repository>
-    where
-        P: AsRef<Path>,
-    {
-        Git2Repository::clone(repo_url, destination).map_err(From::from)
-    }
-
-    fn open<P>(&self, repo_path: P) -> Result<Self::Repository>
-    where
-        P: AsRef<Path>,
-    {
-        Git2Repository::open(repo_path).map_err(From::from)
-    }
-}
-
-/// Provides Git capabilities using the `git` binary.
-///
-/// UNIMPLEMENTED.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct GitBin;
-
-impl Git for GitBin {
-    type Repository = private::Void;
-
-    fn clone<P>(&self, _repo_url: &str, _destination: P) -> Result<Self::Repository>
-    where
-        P: AsRef<Path>,
-    {
-        todo!()
-    }
-
-    fn open<P>(&self, _repo_path: P) -> Result<Self::Repository>
-    where
-        P: AsRef<Path>,
-    {
-        todo!()
     }
 }

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use ghet::cache::Cache;
-use ghet::git::{Commit, Git2, Repository};
+use ghet::git::Commit;
 use rmaker::{Change, Release};
 use serde_json::to_string_pretty;
 use structopt::StructOpt;
@@ -59,7 +59,7 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let repo = ghet::open_repository(Git2, &cache, &app.path)?;
+    let repo = ghet::open_repository(&cache, &app.path)?;
     let mut commits = repo.commits(&app.branch)?;
 
     let start = find_position(&commits, app.start).unwrap_or(0);

@@ -1,25 +1,23 @@
-use anyhow::Result;
-
 pub mod cache;
 pub mod git;
 
 use cache::Cache;
-use git::{Git, Repository};
+use git::Repository;
+
+use anyhow::Result;
 
 /// Attempts to open a local repository in the filesystem, then in the cache.
 /// If both attempts fail, a remote repository will be cloned into the cache using HTTP(s).
 /// If the remote repository is already in the cache, it will be read from there.
-pub fn open_repository<G>(git: G, cache: &Cache, repo_path: &str) -> Result<impl Repository>
-where
-    G: Git,
+pub fn open_repository(cache: &Cache, repo: &str) -> Result<Repository>
 {
-    if repo_path.starts_with("http://") || repo_path.starts_with("https://") {
-        match git.open(cache.repository_path_url(repo_path)?) {
+    if repo.starts_with("http://") || repo.starts_with("https://") {
+        match Repository::open(cache.repository_path_url(repo)?) {
             Ok(repo) => Ok(repo),
-            Err(_) => git.clone(repo_path, cache.repository_path_url(repo_path)?),
+            Err(_) => Repository::clone(repo, cache.repository_path_url(repo)?),
         }
     } else {
-        git.open(repo_path)
-            .or_else(|_| git.open(cache.repository_path(repo_path)))
+        Repository::open(repo)
+            .or_else(|_| Repository::open(cache.repository_path(repo)))
     }
 }
