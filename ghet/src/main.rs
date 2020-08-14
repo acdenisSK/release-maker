@@ -23,11 +23,6 @@ struct App {
     end: Option<String>,
 }
 
-fn find_position(commits: &[Commit], hash: Option<String>) -> Option<usize> {
-    let hash = hash?;
-    commits.iter().position(|c| c.hash == hash)
-}
-
 fn generate_release(repo_url: String, commits: impl Iterator<Item = Commit>) -> Release {
     Release {
         repo_url,
@@ -44,12 +39,15 @@ fn main() -> Result<()> {
     let repo = Repository::open(&app.path)?;
     let mut commits = repo.commits(&app.branch)?;
 
-    let start = find_position(&commits, app.start).unwrap_or(0);
-    // As we are using an inclusive range, draining the list of commits by its length will result
-    // in a panic. To avoid this, we subtract the length only if it is not zero.
-    let end = find_position(&commits, app.end).unwrap_or(commits.len().checked_sub(1).unwrap_or(0));
+    if let Some(start) = app.start {
+        commits = commits.start(&start);
+    }
 
-    let release = generate_release(repo.url()?, commits.drain(start..=end));
+    if let Some(end) = app.end {
+        commits = commits.end(&end);
+    }
+
+    let release = generate_release(repo.url()?, commits);
 
     println!("{}", to_string_pretty(&release)?);
 
