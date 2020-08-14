@@ -1,23 +1,81 @@
-pub mod cache;
-pub mod git;
-
-use cache::Cache;
-use git::Repository;
+//! The *ghet* crate defines a small abstraction of the libgit2 C library
+//! to simplify its usage for the `ghet` binary.
 
 use anyhow::Result;
 
-/// Attempts to open a local repository in the filesystem, then in the cache.
-/// If both attempts fail, a remote repository will be cloned into the cache using HTTP(s).
-/// If the remote repository is already in the cache, it will be read from there.
-pub fn open_repository(cache: &Cache, repo: &str) -> Result<Repository>
-{
-    if repo.starts_with("http://") || repo.starts_with("https://") {
-        match Repository::open(cache.repository_path_url(repo)?) {
-            Ok(repo) => Ok(repo),
-            Err(_) => Repository::clone(repo, cache.repository_path_url(repo)?),
+use std::path::Path;
+
+/// Defines a Git user.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct User {
+    pub name: String,
+    pub email: String,
+}
+
+/// Defines a Git commit.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Commit {
+    pub hash: String,
+    pub author: User,
+    pub committer: User,
+    pub message: String,
+}
+
+/// A wrapper around the [`git2`] crate's [`Repository`] type.
+///
+/// [`git2`]: https://github.com/rust-lang/git2-rs
+/// [`Repository`]: https://docs.rs/git2/*/git2/struct.Repository.html
+pub struct Repository {
+    inner: git2::Repository,
+}
+
+impl Repository {
+    /// Open a local repository at `path`.
+    pub fn open<P>(path: P) -> Result<Self>
+    where
+        P: AsRef<Path>,
+    {
+        Ok(Self {
+            inner: git2::Repository::open(path)?,
+        })
+    }
+
+    /// Returns the URL to the repository.
+    pub fn url(&self) -> Result<String> {
+        Ok(self.inner.find_remote("origin")?.url().unwrap().to_string())
+    }
+
+    /// Returns a vector of [`Commit`]s from a branch.
+    ///
+    /// [`Commit`]: struct.Commit.html
+    pub fn commits(&self, branch: &str) -> Result<Vec<Commit>> {
+        let reference = self.inner.find_reference(&format!("refs/remotes/origin/{}", branch))?;
+
+        let mut revwalk = self.inner.revwalk()?;
+        revwalk.push(reference.target().unwrap())?;
+        revwalk.set_sorting(git2::Sort::TOPOLOGICAL)?;
+
+        let mut commits = Vec::new();
+
+        for oid in revwalk {
+            let commit = self.inner.find_commit(oid?)?;
+            let author = commit.author();
+            let committer = commit.committer();
+
+            commits.push(Commit {
+                hash: commit.id().to_string(),
+                author: User {
+                    name: author.name().unwrap().to_string(),
+                    email: author.email().unwrap().to_string(),
+                },
+                committer: User {
+                    name: committer.name().unwrap().to_string(),
+                    email: committer.email().unwrap().to_string(),
+                },
+                message: commit.summary().unwrap().to_string(),
+            });
         }
-    } else {
-        Repository::open(repo)
-            .or_else(|_| Repository::open(cache.repository_path(repo)))
+
+        Ok(commits)
     }
 }

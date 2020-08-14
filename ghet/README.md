@@ -1,34 +1,28 @@
 # `ghet`
 
-`ghet` is a tool to *get* a list of commits from a **G**it**h**ub repository, or any Git repository
-that exists locally or remotely. It is a utility to swiftly fetch an arbitrary amount of commits
-from a repository that you have read access to.
+`ghet` is a tool to get a list of commits from a local Git repository. It is a utility to swiftly
+fetch an arbitrary amount of commits that you can plug into the `release-maker` program.
 
-The output is `release-maker`-compatible json. As a result, you can directly pipe it as input
-to the `release-maker` program to generate the markdown changelog. Note, however, that the output
-given by `ghet` will not be immediataly suitable for creating a changelog. Its job is to just get
-a list of commits in the json format that can be plugged into `release-maker`. It cannot tell the
-purpose of the changes, it cannot group commits or authors into a single change, it cannot create
-a header detailing the release for you.
+The output is `release-maker`-compatible json. You can store it in a file, make amendments, and create
+a changelog out of it. You can also directly pipe it to `release-maker`'s standard input, but this is
+discouraged (see below).
 
-To clarify what is meant in the previous paragraph, let's dive into an example to demonstrate.
-We will be using this repository.
-
-## Example
+## Usage
 
 ```
-ghet https://github.com/acdenisSK/release-maker
+ghet path/to/repo
 ```
 
-Here we specify the repository as the argument to `ghet`. Without specifying anything else, this command
-will get *ALL* of the commits from the repository's default branch, assumed to be `master`. If you leave
-out this argument, `ghet` will try to read a Git repository from the current directory.
+Here we specify the path to the repository as the argument to `ghet`. Without specifying anything else,
+this command will get *ALL* of the commits from the repository's default branch, assumed to be `master`.
+If you leave out this argument, `ghet` will try to read a repository from the current directory.
 
-If you need to be concrete with the amount of commits, and the location where the listing
-should occur, you can do this with the `--start` (`-s`) and `--end` (`-e`) flags.
+If you need to be specific with the amount of commits, and the location where the listing
+should occur, you can do this with the `--start` (`-s`) and `--end` (`-e`) flags. For exemplary purposes,
+we will apply these flags on the release-maker repository, assuming it's the current directory:
 
 ```
-ghet https://github.com/acdenisSK/release-maker --start 586f5e3220022e33e1bb3c0ccc0380eb312d1b0c --end 2f540649cd0f5d3d6a47d3119f15f6367c289330
+ghet --start 586f5e3220022e33e1bb3c0ccc0380eb312d1b0c --end 2f540649cd0f5d3d6a47d3119f15f6367c289330
 ```
 
 This command will fetch every commit, beginning from the `--start`ing boundary and finishing
@@ -87,10 +81,9 @@ Thanks to the following for their contributions:
 [c:2f54064]: https://github.com/acdenisSK/release-maker/commit/2f540649cd0f5d3d6a47d3119f15f6367c289330
 ```
 
-As can be seen, this is already a usable changelog. However, as mentioned previously, it might not be a
-suitable changelog.
+As can be seen, this is already a usable changelog. However, it might not be a suitable changelog.
 
-This is due to the three facts of the output from `ghet`:
+This is due to three facts of the output from `ghet`:
 - The names of authors are retrieved from the data of the commits, not from Github.
   - Currently, `release-maker` assumes that the authors belong to Github accounts.
   - This has the side-effect of breaking the link to the author's Github profile page.
@@ -99,16 +92,6 @@ This is due to the three facts of the output from `ghet`:
 - The category of all changes is assumed `any`.
 
 It is, therefore, recommended to amend the output from `ghet` before piping it into `release-maker`.
-
-## Cache
-
-`ghet` is capable of retrieving a list of commits from a remote Git repository. Before it is able to do so,
-however, it must clone the repository to the filesystem. The location in the filesystem is inside the user's
-cache directory. On linux, this will be `$HOME/.cache/ghet`. If a remote Git repository had already been cached,
-and the same URL is given, `ghet` will read the cloned repository that exists inside the cache. At this moment,
-`ghet` cannot update repositories in the cache by itself. You may update them yourself (i.e., perform a `git pull`
-for each repository), or remove them. As for the latter, `ghet` provides a convenience subcommand called `clear`.
-`ghet clear` will delete the whole `$HOME/.cache/ghet` directory.
 
 ## Further help
 

@@ -1,6 +1,5 @@
 use anyhow::Result;
-use ghet::cache::Cache;
-use ghet::git::Commit;
+use ghet::{Commit, Repository};
 use rmaker::{Change, Release};
 use serde_json::to_string_pretty;
 use structopt::StructOpt;
@@ -22,14 +21,6 @@ struct App {
     /// If left undefined, this will retrieve ALL commits from the start of the list.
     #[structopt(short, long)]
     end: Option<String>,
-    #[structopt(subcommand)]
-    subcommand: Option<SubCommand>,
-}
-
-#[derive(StructOpt)]
-enum SubCommand {
-    /// Clear the program cache.
-    Clear,
 }
 
 fn find_position(commits: &[Commit], hash: Option<String>) -> Option<usize> {
@@ -49,17 +40,8 @@ fn generate_release(repo_url: String, commits: impl Iterator<Item = Commit>) -> 
 
 fn main() -> Result<()> {
     let app = App::from_args();
-    let cache = Cache::new(env!("CARGO_PKG_NAME"))?;
 
-    if let Some(command) = app.subcommand {
-        match command {
-            SubCommand::Clear => cache.clear()?,
-        }
-
-        return Ok(());
-    }
-
-    let repo = ghet::open_repository(&cache, &app.path)?;
+    let repo = Repository::open(&app.path)?;
     let mut commits = repo.commits(&app.branch)?;
 
     let start = find_position(&commits, app.start).unwrap_or(0);
