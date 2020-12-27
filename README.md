@@ -3,7 +3,7 @@
 ## What is this?
 
 I am the lead developer of [Serenity], a Rust Discord API wrapper. When publishing new versions we cater our changelogs to a specific style.
-I had been writing in this style by hand, but I quickly got sick of it. Hence lead to the creation of this tool that simplifies the process.
+I had been writing in this style by hand, but I quickly got sick of it. Hence led to the creation of this tool that simplifies the process.
 
 ## Okay, seems interesting. May I use it?
 
