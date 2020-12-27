@@ -1,8 +1,7 @@
-The input of the tool is json containing an optional header, a URL to the git repository, and four classes that classify commits based on their function.
+The input of the tool is json containing a URL to the git repository, and four classes that classify commits based on their function.
 The resulting output is markdown-formatted text.
 
 The output is generated as the following:
-- A header, if it was provided in the input.
 - Credit to all the authors in a list that is sorted alphabetically.
 - The "Added" class. Indicates that commits add new behaviour or functionality.
 - The "Changed" class. Indicates that commits alter pre-existing behaviour or functionality.

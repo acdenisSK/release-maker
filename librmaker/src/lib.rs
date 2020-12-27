@@ -277,11 +277,6 @@ impl Change {
 /// Represents a release of the software from the current snapshot of the repository.
 #[derive(Serialize, Default, Deserialize, Debug, Clone)]
 pub struct Release {
-    /// A message describing the release. Placed at the top of the generated output.
-    ///
-    /// This is optional. If its contents are empty, it is not displayed in the output.
-    #[serde(default)]
-    pub header: String,
     /// The URL to the Github repository.
     pub repo_url: String,
     /// Changes whose purpose was to add functionality.
@@ -377,10 +372,6 @@ fn write_list(source: &mut dyn fmt::Write, header: &str, changes: &[Change]) -> 
 /// [`Release`]: struct.Release.html
 /// [`std::fmt::Write`]: std::fmt::Write
 pub fn generate_msg(source: &mut dyn fmt::Write, rel: &Release) -> fmt::Result {
-    if !rel.header.is_empty() {
-        writeln!(source, "{}\n", rel.header)?;
-    }
-
     writeln!(source, "Thanks to the following for their contributions:\n")?;
 
     let mut authors = rel.get_authors();
