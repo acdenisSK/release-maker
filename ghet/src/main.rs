@@ -2,24 +2,24 @@ use anyhow::Result;
 use ghet::{Commit, Repository};
 use rmaker::{Change, Release};
 use serde_json::to_string_pretty;
-use structopt::StructOpt;
+use clap::Clap;
 
-#[derive(StructOpt)]
 /// Get a list of commits from a Git repository.
+#[derive(Clap)]
 struct App {
     /// The path, which may be a directory path or URL, to a Git repository
-    #[structopt(default_value = ".")]
+    #[clap(default_value = ".")]
     path: String,
     /// The branch to construct the list of commits from.
     /// Defaults to `master` if left undefined.
-    #[structopt(short, long, default_value = "master")]
+    #[clap(short, long, default_value = "master")]
     branch: String,
     /// A commit hash to define the start boundary of the list.
-    #[structopt(short, long)]
+    #[clap(short, long)]
     start: Option<String>,
     /// A commit hash to define the (inclusive) end boundary of the list.
     /// If left undefined, this will retrieve ALL commits from the start of the list.
-    #[structopt(short, long)]
+    #[clap(short, long)]
     end: Option<String>,
 }
 
@@ -34,7 +34,7 @@ fn generate_release(repo_url: String, commits: impl Iterator<Item = Commit>) -> 
 }
 
 fn main() -> Result<()> {
-    let app = App::from_args();
+    let app = App::parse();
 
     let repo = Repository::open(&app.path)?;
     let mut commits = repo.commits(&app.branch)?;
