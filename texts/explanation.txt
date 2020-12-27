@@ -1,3 +1,5 @@
+# Explanation
+
 The input of the tool is json containing a URL to the git repository, and four classes that classify commits based on their function.
 The resulting output is markdown-formatted text.
 

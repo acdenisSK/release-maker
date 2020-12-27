@@ -1,9 +1,3 @@
-//! The underlaying functionality of the [`release-maker`] binary exposed as a library.
-//!
-//! [`release-maker`]: https://github.com/acdenisSK/release-maker
-
-#![deny(rust_2018_idioms)]
-
 use serde::de::{Error as DeError, SeqAccess, Visitor};
 use serde::ser::SerializeSeq;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -112,16 +106,6 @@ impl Author {
 
 impl fmt::Display for Author {
     /// Format the author to display the second part of reference-style link of a Github mention to them.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use rmaker::Author;
-    ///
-    /// let author = Author::new("ghost");
-    ///
-    /// assert_eq!("[@ghost]", format!("{}", author));
-    /// ```
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "[@{}]", self.name())
@@ -210,16 +194,6 @@ impl TryFrom<String> for Commit {
 impl fmt::Display for Commit {
     /// Format the commit to display the second part of reference-style link to them.
     /// Only the first seven characters of the hash are outputted, for legibility.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use rmaker::Commit;
-    ///
-    /// let commit = Commit::new("820d50ee4fbc72a41a2040f6ced240df7aaa6fa8");
-    ///
-    /// assert_eq!("[c:820d50e]", format!("{}", commit));
-    /// ```
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "[c:{}]", &self.hash()[..7])
@@ -242,22 +216,6 @@ pub struct Change(
 
 impl Change {
     /// Create a new Change with a category, a name, a single author, and a single commit.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use rmaker::{Change, OneOrMore};
-    ///
-    /// let Change(category, name, OneOrMore(authors), OneOrMore(commits)) =
-    ///     Change::new("misc", "Changed something", "John Doe", "820d50ee4fbc72a41a2040f6ced240df7aaa6fa8");
-    ///
-    /// assert_eq!(category, "misc");
-    /// assert_eq!(name, "Changed something");
-    /// assert_eq!(authors.len(), 1);
-    /// assert_eq!(authors[0].name(), "John Doe");
-    /// assert_eq!(commits.len(), 1);
-    /// assert_eq!(commits[0].hash(), "820d50ee4fbc72a41a2040f6ced240df7aaa6fa8");
-    /// ```
     pub fn new<A, B, C, D>(category: A, name: B, author: C, commit: D) -> Self
     where
         A: Into<String>,

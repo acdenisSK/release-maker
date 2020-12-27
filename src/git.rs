@@ -1,6 +1,3 @@
-//! The *ghet* crate defines a small abstraction of the libgit2 C library
-//! to simplify its usage for the `ghet` binary.
-
 use anyhow::Result;
 
 use std::path::Path;
@@ -126,8 +123,10 @@ impl Repository {
     /// Returns an iterator of [`Commit`]s from a branch.
     ///
     /// [`Commit`]: struct.Commit.html
-    pub fn commits(&self, branch: &str) -> Result<Commits> {
-        let reference = self.inner.find_reference(&format!("refs/remotes/origin/{}", branch))?;
+    pub fn commits(&self, branch: &str) -> Result<Commits<'_>> {
+        let reference = self
+            .inner
+            .find_reference(&format!("refs/remotes/origin/{}", branch))?;
 
         let mut revwalk = self.inner.revwalk()?;
         revwalk.push(reference.target().unwrap())?;

@@ -1,6 +1,18 @@
-[workspace]
-members = [
-    "librmaker",
-    "release-maker",
-    "ghet",
-]
+[package]
+name = "release-maker"
+version = "0.2.0"
+authors = ["Alex M. M. <acdenissk69@gmail.com>"]
+edition = "2018"
+description = "A utility tool to quickly create changelogs for Github releases"
+license = "MIT"
+homepage = "https://github.com/acdenisSK/release-maker"
+repository = "https://github.com/acdenisSK/release-maker.git"
+readme = "README.md"
+include = ["src/*", "texts/*", "LICENSE.md", "README.md"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+clap = "3.0.0-beta.2"
+git2 = "0.12"
+anyhow = "1.0"

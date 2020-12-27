@@ -1,0 +1,8 @@
+# Gotchas
+
+The names of authors are retrieved from the data of the commits, not from Github. The tool assumes that the authors belong to Github accounts.
+As as a result, this has the side-effect of breaking the link to the author's Github profile page.
+
+All changes are clumped into one purpose, the `added` purpose. Of the commits used above, only one fits this purpose.
+
+The category of all changes is assumed `any`.
