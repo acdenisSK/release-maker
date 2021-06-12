@@ -1,12 +1,13 @@
 #![deny(rust_2018_idioms)]
 
+mod error;
 mod git;
 mod release;
 
+use error::Result;
 use git::{Commit, Repository};
 use release::{generate_msg, Change, Release};
 
-use anyhow::Result;
 use clap::Clap;
 use serde_json::to_string_pretty;
 
